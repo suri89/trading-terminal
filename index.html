@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BTC/USDT — Institutional Trading Terminal</title>
+  <meta name="description" content="Zero-lag institutional quantitative trading terminal with real-time Order Flow analytics, FB/FS/EB/ES participant state machine, and direct Binance Perpetual Futures API integration.">
+  <meta name="robots" content="noindex">
+
+  <!-- TradingView Lightweight Charts v4 -->
+  <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ─────────────────────────────────────────
+     LOADING OVERLAY
+───────────────────────────────────────── -->
+<div id="loading-overlay">
+  <div class="loader-logo">⬡ QUANT TERMINAL</div>
+  <div class="loader-spinner"></div>
+  <div id="loader-status" class="loader-status">Initializing engine...</div>
+</div>
+
+<!-- ─────────────────────────────────────────
+     APP SHELL
+───────────────────────────────────────── -->
+<div id="app">
+
+  <!-- ══════════════════════════════════════
+       HEADER — HEARTBEAT BAR
+  ══════════════════════════════════════ -->
+  <header id="header">
+
+    <!-- Left: Asset Info + Live Price -->
+    <div class="header-left">
+      <div class="asset-icon">₿</div>
+      <div class="asset-info">
+        <div class="asset-title">BTC/USDT Binance Perpetual Futures</div>
+        <div class="asset-sub">Order Flow Analytics · Real-Time</div>
+      </div>
+
+      <div class="price-badge">
+        <span class="pulse-dot" id="pulse-dot"></span>
+        <span id="live-price">$——,———.——</span>
+        <span id="price-change" class="price-flat">——%</span>
+      </div>
+
+      <!-- Candle Countdown Badge -->
+      <div class="countdown-badge" id="countdown-badge" aria-label="Bar close countdown">
+        <span class="countdown-icon">⏱</span>
+        <span id="countdown-value">——:——</span>
+      </div>
+
+      <!-- Connection status -->
+      <div class="conn-status">
+        <div class="conn-dot loading" id="conn-dot"></div>
+        <span id="conn-text">Connecting...</span>
+      </div>
+    </div>
+
+    <!-- Right: Ping + Timeframes -->
+    <div class="header-right">
+      <div class="ping-badge">
+        <div class="ping-icon"></div>
+        <span id="ping-value">Establishing connection...</span>
+      </div>
+
+      <div class="tf-tabs" role="tablist" aria-label="Timeframe selector">
+        <button class="tf-tab active" data-tf="1m"  id="tf-1m"  role="tab" aria-selected="true">1m</button>
+        <button class="tf-tab"        data-tf="3m"  id="tf-3m"  role="tab" aria-selected="false">3m</button>
+        <button class="tf-tab"        data-tf="5m"  id="tf-5m"  role="tab" aria-selected="false">5m</button>
+        <button class="tf-tab"        data-tf="15m" id="tf-15m" role="tab" aria-selected="false">15m</button>
+        <button class="tf-tab"        data-tf="1H"  id="tf-1H"  role="tab" aria-selected="false">1H</button>
+        <button class="tf-tab"        data-tf="1D"  id="tf-1D"  role="tab" aria-selected="false">1D</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ══════════════════════════════════════
+       BODY — TOOLBAR + CHART STACK
+  ══════════════════════════════════════ -->
+  <div id="body">
+
+    <!-- ─── LEFT TOOLBAR ─── -->
+    <nav id="toolbar" aria-label="Drawing tools">
+
+      <!-- Cursor / Select -->
+      <button class="tool-btn active"
+              id="tool-cursor"
+              data-tool="cursor"
+              data-tip="Cursor / Select"
+              aria-label="Cursor tool"
+              title="Cursor">
+        <!-- Cursor SVG -->
+        <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
+          <path d="M2 1l12 5.5-5.5 1.5L7 14z"/>
+        </svg>
+      </button>
+
+      <div class="tool-divider"></div>
+
+      <!-- Horizontal Line -->
+      <button class="tool-btn"
+              id="tool-hline"
+              data-tool="hline"
+              data-tip="Horizontal Line"
+              aria-label="Horizontal line tool">
+        <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <line x1="1" y1="8" x2="15" y2="8" stroke-dasharray="3 2"/>
+          <circle cx="1"  cy="8" r="1.5" fill="currentColor" stroke="none"/>
+          <circle cx="15" cy="8" r="1.5" fill="currentColor" stroke="none"/>
+        </svg>
+      </button>
+
+      <!-- Vertical Line -->
+      <button class="tool-btn"
+              id="tool-vline"
+              data-tool="vline"
+              data-tip="Vertical Line"
+              aria-label="Vertical line tool">
+        <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <line x1="8" y1="1" x2="8" y2="15" stroke-dasharray="3 2"/>
+          <circle cx="8" cy="1"  r="1.5" fill="currentColor" stroke="none"/>
+          <circle cx="8" cy="15" r="1.5" fill="currentColor" stroke="none"/>
+        </svg>
+      </button>
+
+      <div class="tool-divider"></div>
+
+      <!-- Ruler / Measure -->
+      <button class="tool-btn"
+              id="tool-ruler"
+              data-tool="ruler"
+              data-tip="Ruler / Measure"
+              aria-label="Ruler measure tool">
+        <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
+          <rect x="1" y="6" width="14" height="4" rx="1" opacity="0.4"/>
+          <line x1="3" y1="5" x2="3" y2="11" stroke="currentColor" stroke-width="1.5"/>
+          <line x1="8" y1="5" x2="8" y2="11" stroke="currentColor" stroke-width="1.5"/>
+          <line x1="13" y1="5" x2="13" y2="11" stroke="currentColor" stroke-width="1.5"/>
+          <line x1="1" y1="8" x2="15" y2="8" stroke="currentColor" stroke-width="1"/>
+        </svg>
+      </button>
+
+      <div class="tool-divider"></div>
+
+      <!-- Clear All -->
+      <button class="tool-btn"
+              id="tool-clear"
+              data-tool="clear"
+              data-tip="Clear All Drawings"
+              aria-label="Clear all drawings">
+        <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <line x1="3" y1="3" x2="13" y2="13"/>
+          <line x1="13" y1="3" x2="3" y2="13"/>
+          <rect x="1" y="1" width="14" height="14" rx="2" opacity="0.2" fill="currentColor"/>
+        </svg>
+      </button>
+
+    </nav>
+
+    <!-- ─── 3-PANE CHART STACK ─── -->
+    <main id="chart-area" role="main" aria-label="Chart workspace">
+
+      <!-- ══ PANE 1: PRICE CANDLESTICK ══ -->
+      <section id="pane-price" aria-label="Price chart">
+
+        <!-- Status Line -->
+        <div id="status-line" aria-live="polite" aria-label="Market participant metrics">
+          <span class="status-label">Market Participant OI Delta &amp; Labels</span>
+          <span class="status-diamond">◇</span>
+          <span class="status-label">Coverage:</span>
+          <span class="status-metric" id="sl-coverage">——</span>
+          <span class="status-pipe">|</span>
+          <span class="status-label">Openers Share:</span>
+          <span class="status-metric" id="sl-openers">——</span>
+          <span class="status-pipe">|</span>
+          <span class="status-label">Closers Share:</span>
+          <span class="status-metric" id="sl-closers">——</span>
+          <span class="status-pipe">|</span>
+          <span class="status-label">Net OI Δ:</span>
+          <span class="status-metric" id="sl-oi-delta">——</span>
+          <span class="status-pipe">|</span>
+          <span class="status-label">Vol:</span>
+          <span class="status-metric" id="sl-volume">——</span>
+          <span class="status-pipe">|</span>
+          <span class="status-label">Signal:</span>
+          <span class="status-metric" id="sl-signal">——</span>
+          <span id="sl-state" class="status-state state-FB">——</span>
+        </div>
+
+        <!-- LWC Price Chart Mount Point -->
+        <div id="price-chart-container"></div>
+
+        <!-- Ruler drag rect -->
+        <div id="ruler-rect"></div>
+
+      </section>
+
+      <!-- ══ PANE 2: VOLUME SUBPANEL ══ -->
+      <section id="pane-volume" aria-label="Volume chart">
+        <div class="pane-label">VOL</div>
+        <div id="volume-chart-container"></div>
+        <!-- Synchronized vertical crosshair line over volume pane -->
+        <div id="volume-crosshair-line"></div>
+      </section>
+
+      <!-- ══ PANE 3: PARTICIPANT RIBBON ══ -->
+      <section id="pane-ribbon" aria-label="Market participant ribbon">
+        <canvas id="ribbon-canvas"></canvas>
+        <!-- Synchronized vertical crosshair line over ribbon -->
+        <div id="ribbon-crosshair-line"></div>
+      </section>
+
+    </main><!-- #chart-area -->
+
+  </div><!-- #body -->
+
+</div><!-- #app -->
+
+<!-- Application Script -->
+<script src="app.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: btc-quant-terminal
+    env: docker
+    plan: free
+    autoDeploy: true
+    healthCheckPath: /ping
+    envVars:
+      - key: PORT
+        value: 8765
+      - key: SYMBOL
+        value: BTCUSDT

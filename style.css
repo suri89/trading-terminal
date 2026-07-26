@@ -1,0 +1,694 @@
+/* ═══════════════════════════════════════════════════════════════
+   INSTITUTIONAL TRADING TERMINAL — style.css
+   Dark Mode Glassmorphism Theme
+═══════════════════════════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+/* ─── Design Tokens ─── */
+:root {
+  --bg-primary:     #0A0D14;
+  --bg-secondary:   #0D1117;
+  --bg-panel:       #111520;
+  --bg-glass:       rgba(16, 20, 34, 0.85);
+  --bg-hover:       rgba(255,255,255,0.04);
+
+  --border-primary: rgba(255,255,255,0.08);
+  --border-accent:  rgba(99, 179, 237, 0.25);
+  --border-crisp:   rgba(255,255,255,0.12);
+
+  --text-primary:   #E2E8F0;
+  --text-secondary: #94A3B8;
+  --text-muted:     #475569;
+  --text-mono:      'JetBrains Mono', monospace;
+
+  /* Participant Colors */
+  --fb-color:       #00C896;
+  --fs-color:       #FF4757;
+  --eb-color:       #FFA502;
+  --es-color:       #7C6FFF;
+
+  /* Accent */
+  --accent-blue:    #3B82F6;
+  --accent-cyan:    #06B6D4;
+  --accent-green:   #10B981;
+  --accent-red:     #EF4444;
+  --live-pulse:     #00FF88;
+
+  --toolbar-w:      48px;
+  --header-h:       52px;
+  --ribbon-h:       36px;
+  --volume-h:       22%;
+}
+
+/* ─── Reset & Base ─── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── Layout Shell ─── */
+#app {
+  display: flex;
+  flex-direction: column;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   HEADER — HEARTBEAT BAR
+═══════════════════════════════════════════════════════════════ */
+#header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--header-h);
+  padding: 0 14px 0 calc(var(--toolbar-w) + 14px);
+  background: var(--bg-glass);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border-primary);
+  flex-shrink: 0;
+  z-index: 100;
+  position: relative;
+}
+
+/* Gradient top line */
+#header::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    var(--accent-cyan) 30%,
+    var(--accent-blue) 70%,
+    transparent 100%);
+  opacity: 0.6;
+}
+
+/* ─── Left: Asset Info ─── */
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.asset-icon {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #F7931A, #FFB84D);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px;
+  box-shadow: 0 0 12px rgba(247,147,26,0.4);
+  flex-shrink: 0;
+}
+
+.asset-info { display: flex; flex-direction: column; gap: 1px; }
+
+.asset-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: 0.3px;
+}
+
+.asset-sub {
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+/* Live Price Badge */
+.price-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  background: rgba(0, 255, 136, 0.06);
+  border: 1px solid rgba(0, 255, 136, 0.2);
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+.price-badge::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(0,255,136,0.04), transparent);
+  pointer-events: none;
+}
+
+.pulse-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--live-pulse);
+  box-shadow: 0 0 8px var(--live-pulse);
+  animation: pulse-glow 1.4s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 1; box-shadow: 0 0 6px var(--live-pulse); transform: scale(1); }
+  50%       { opacity: 0.6; box-shadow: 0 0 14px var(--live-pulse); transform: scale(1.3); }
+}
+
+#live-price {
+  font-family: var(--text-mono);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--live-pulse);
+  letter-spacing: -0.3px;
+  min-width: 100px;
+  text-align: right;
+}
+
+#price-change {
+  font-family: var(--text-mono);
+  font-size: 11px;
+  font-weight: 500;
+  min-width: 58px;
+}
+
+.price-up   { color: var(--accent-green); }
+.price-down { color: var(--accent-red); }
+.price-flat { color: var(--text-muted); }
+
+/* Countdown Badge */
+.countdown-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  background: rgba(255, 159, 28, 0.06);
+  border: 1px solid rgba(255, 159, 28, 0.28);
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+.countdown-badge::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,159,28,0.05), transparent);
+  pointer-events: none;
+}
+
+.countdown-icon {
+  font-size: 13px;
+  opacity: 0.8;
+  flex-shrink: 0;
+}
+
+#countdown-value {
+  font-family: var(--text-mono);
+  font-size: 15px;
+  font-weight: 600;
+  color: #FF9F1C;
+  letter-spacing: 1px;
+  text-shadow: 0 0 10px rgba(255,159,28,0.5);
+  min-width: 48px;
+  text-align: center;
+}
+
+/* Countdown warning pulse (< 10 seconds) */
+.countdown-badge.urgent #countdown-value {
+  color: #FF4757;
+  text-shadow: 0 0 14px rgba(255,71,87,0.7);
+  animation: urgent-blink 0.5s ease-in-out infinite alternate;
+}
+
+@keyframes urgent-blink {
+  from { opacity: 1; }
+  to   { opacity: 0.55; }
+}
+
+/* ─── Right: Controls ─── */
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Ping Badge */
+.ping-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: rgba(6,182,212,0.06);
+  border: 1px solid rgba(6,182,212,0.2);
+  border-radius: 6px;
+  font-family: var(--text-mono);
+  font-size: 11px;
+  color: var(--accent-cyan);
+  white-space: nowrap;
+}
+
+.ping-badge .ping-icon {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--accent-cyan);
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Timeframe Tabs */
+.tf-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+  padding: 3px;
+}
+
+.tf-tab {
+  padding: 4px 10px;
+  border-radius: 5px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  letter-spacing: 0.3px;
+}
+
+.tf-tab:hover {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
+
+.tf-tab.active {
+  background: linear-gradient(135deg, rgba(59,130,246,0.25), rgba(6,182,212,0.15));
+  color: #93C5FD;
+  border: 1px solid rgba(59,130,246,0.35);
+  box-shadow: 0 0 8px rgba(59,130,246,0.15);
+}
+
+/* Connection Status */
+.conn-status {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.conn-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+
+.conn-dot.connected { background: var(--live-pulse); box-shadow: 0 0 6px var(--live-pulse); }
+.conn-dot.loading   { background: var(--eb-color); animation: pulse-glow 1s infinite; }
+.conn-dot.error     { background: var(--accent-red); }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   MAIN BODY — Toolbar + Chart Stack
+═══════════════════════════════════════════════════════════════ */
+#body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ─── Left Toolbar ─── */
+#toolbar {
+  width: var(--toolbar-w);
+  height: 100%;
+  background: var(--bg-panel);
+  border-right: 1px solid var(--border-primary);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 0;
+  gap: 4px;
+  flex-shrink: 0;
+  z-index: 50;
+}
+
+.tool-btn {
+  width: 34px; height: 34px;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px;
+  transition: all 0.15s ease;
+  position: relative;
+}
+
+.tool-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-primary);
+  color: var(--text-secondary);
+}
+
+.tool-btn.active {
+  background: rgba(59,130,246,0.15);
+  border-color: rgba(59,130,246,0.4);
+  color: #93C5FD;
+  box-shadow: 0 0 8px rgba(59,130,246,0.2);
+}
+
+.tool-divider {
+  width: 28px;
+  height: 1px;
+  background: var(--border-primary);
+  margin: 4px 0;
+}
+
+/* Tooltip */
+.tool-btn::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(15,20,35,0.95);
+  border: 1px solid var(--border-primary);
+  border-radius: 5px;
+  padding: 4px 8px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 200;
+}
+
+.tool-btn:hover::after { opacity: 1; }
+
+/* ─── Chart Area ─── */
+#chart-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PANE 1 — PRICE CHART (72%)
+═══════════════════════════════════════════════════════════════ */
+#pane-price {
+  flex: 1 1 72%;
+  position: relative;
+  min-height: 0;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-crisp);
+}
+
+/* Status Line (top-left overlay on price chart) */
+#status-line {
+  position: absolute;
+  top: 8px; left: 8px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--text-mono);
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  pointer-events: none;
+  line-height: 1;
+}
+
+.status-label {
+  color: var(--text-muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.status-diamond { color: var(--border-accent); }
+
+.status-pipe {
+  color: rgba(255,255,255,0.15);
+  font-size: 12px;
+  margin: 0 1px;
+}
+
+.status-metric {
+  color: var(--text-primary);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* State-colored metric variants */
+.status-metric.metric-fb { color: var(--fb-color); text-shadow: 0 0 8px rgba(0,200,150,0.45); }
+.status-metric.metric-fs { color: var(--fs-color); text-shadow: 0 0 8px rgba(255,71,87,0.45); }
+.status-metric.metric-eb { color: var(--eb-color); text-shadow: 0 0 8px rgba(255,165,2,0.45); }
+.status-metric.metric-es { color: var(--es-color); text-shadow: 0 0 8px rgba(124,111,255,0.45); }
+
+.status-state {
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.state-FB { background: rgba(0,200,150,0.15); color: var(--fb-color); border: 1px solid rgba(0,200,150,0.3); }
+.state-FS { background: rgba(255,71,87,0.15);  color: var(--fs-color); border: 1px solid rgba(255,71,87,0.3); }
+.state-EB { background: rgba(255,165,2,0.15);  color: var(--eb-color); border: 1px solid rgba(255,165,2,0.3); }
+.state-ES { background: rgba(124,111,255,0.15);color: var(--es-color); border: 1px solid rgba(124,111,255,0.3); }
+
+#price-chart-container {
+  width: 100%; height: 100%;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PANE 2 — VOLUME (22%)
+═══════════════════════════════════════════════════════════════ */
+#pane-volume {
+  flex: 0 0 22%;
+  position: relative;
+  min-height: 0;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-crisp);
+}
+
+.pane-label {
+  position: absolute;
+  top: 5px; left: 8px;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  z-index: 10;
+  pointer-events: none;
+  font-family: var(--text-mono);
+}
+
+#volume-chart-container {
+  width: 100%; height: 100%;
+}
+
+/* Volume pane crosshair line overlay — synced from price chart hover */
+#volume-crosshair-line {
+  position: absolute;
+  top: 0;
+  width: 1px;
+  height: 100%;
+  background: rgba(148,163,184,0.55);
+  pointer-events: none;
+  z-index: 10;
+  display: none;
+  transform: translateX(-50%);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PANE 3 — PARTICIPANT RIBBON (6%)
+═══════════════════════════════════════════════════════════════ */
+#pane-ribbon {
+  flex: 0 0 var(--ribbon-h);
+  position: relative;
+  background: var(--bg-secondary);
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+
+#ribbon-canvas {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  image-rendering: crisp-edges;
+}
+
+/* Ribbon crosshair line overlay (injected via JS) */
+#ribbon-crosshair-line {
+  position: absolute;
+  top: 0;
+  width: 1px;
+  height: 100%;
+  background: rgba(148,163,184,0.55);
+  pointer-events: none;
+  z-index: 10;
+  display: none;
+  transform: translateX(-50%);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   RULER / MEASURE OVERLAY
+═══════════════════════════════════════════════════════════════ */
+#measure-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 30;
+}
+
+.measure-box {
+  position: absolute;
+  background: rgba(10, 13, 20, 0.9);
+  border: 1px solid rgba(59, 130, 246, 0.5);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-family: var(--text-mono);
+  font-size: 11px;
+  color: var(--text-primary);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  backdrop-filter: blur(8px);
+  pointer-events: none;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
+.measure-row { display: flex; justify-content: space-between; gap: 12px; }
+.measure-key { color: var(--text-muted); }
+.measure-val { font-weight: 600; }
+.measure-positive { color: var(--accent-green); }
+.measure-negative { color: var(--accent-red); }
+
+/* Ruler selection rectangle */
+#ruler-rect {
+  position: absolute;
+  border: 1px solid rgba(59,130,246,0.6);
+  background: rgba(59,130,246,0.06);
+  pointer-events: none;
+  z-index: 25;
+  display: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   LOADING OVERLAY
+═══════════════════════════════════════════════════════════════ */
+#loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--bg-primary);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  z-index: 999;
+  transition: opacity 0.5s ease;
+}
+
+#loading-overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.loader-logo {
+  font-size: 28px;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.5px;
+}
+
+.loader-spinner {
+  width: 36px; height: 36px;
+  border: 3px solid rgba(255,255,255,0.08);
+  border-top-color: var(--accent-cyan);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.loader-status {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-family: var(--text-mono);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SCROLLBAR STYLING
+═══════════════════════════════════════════════════════════════ */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+/* ═══════════════════════════════════════════════════════════════
+   DRAWING LINES (SVG overlay injected by JS)
+═══════════════════════════════════════════════════════════════ */
+.drawing-svg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 15;
+}
+
+.h-line {
+  stroke: rgba(251, 191, 36, 0.7);
+  stroke-width: 1;
+  stroke-dasharray: 6 4;
+}
+
+.h-line-label {
+  fill: rgba(251, 191, 36, 0.9);
+  font-size: 10px;
+  font-family: var(--text-mono);
+}
+
+.v-line {
+  stroke: rgba(124, 111, 255, 0.6);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   TOOLTIP (crosshair hover info)
+═══════════════════════════════════════════════════════════════ */
+#crosshair-tooltip {
+  position: absolute;
+  background: rgba(10, 13, 20, 0.92);
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-family: var(--text-mono);
+  font-size: 11px;
+  color: var(--text-primary);
+  pointer-events: none;
+  z-index: 50;
+  display: none;
+  white-space: nowrap;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  line-height: 1.7;
+}
