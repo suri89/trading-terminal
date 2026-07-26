@@ -299,9 +299,8 @@ async def fetch_klines(session: aiohttp.ClientSession, tf: str, limit: int = 100
 
 async def fetch_oi_history(session: aiohttp.ClientSession, tf: str) -> dict:
     """
-    Fetch historical Open Interest from Binance Futures.
+    Fetch historical Open Interest from Binance Futures and enrich with Real-Time SQLite Archive.
     Returns {open_time_ms: oi_value}.
-    Note: minimum granularity from this endpoint is 5m.
     """
     oi_period_map = {
         "1m": "5m", "3m": "5m", "5m": "5m",
@@ -319,11 +318,23 @@ async def fetch_oi_history(session: aiohttp.ClientSession, tf: str) -> dict:
                     ts = int(item["timestamp"])
                     oi = float(item["sumOpenInterest"])
                     oi_map[ts] = oi
-                log.info(f"Fetched {len(oi_map)} OI history points")
+                log.info(f"Fetched {len(oi_map)} Binance OI history points")
             else:
                 log.error(f"OI history fetch failed: HTTP {resp.status}")
     except Exception as e:
         log.error(f"OI history fetch error: {e}")
+
+    # 2. Enrich with Real-Time SQLite Archive (oi_ticks_1s.db)
+    try:
+        db_cursor.execute("SELECT ts_ms, oi FROM oi_ticks ORDER BY ts_ms ASC")
+        archive_ticks = db_cursor.fetchall()
+        if archive_ticks:
+            for ts_ms, oi_val in archive_ticks:
+                oi_map[ts_ms] = oi_val
+            log.info(f"Enriched historical OI map with {len(archive_ticks)} true 1-second ticks from Real-Time SQLite Archive!")
+    except Exception as e:
+        log.warning(f"SQLite Archive enrichment error: {e}")
+
     return oi_map
 
 
