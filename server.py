@@ -207,7 +207,7 @@ def aggregate_klines_oi(klines: list, oi_map: dict, tf: str, klines_1m: list = N
         l = float(k[3])
         c = float(k[4])
         vol = float(k[5])
-        taker_buy_vol = float(k[9])   # Taker buy base asset volume
+        taker_buy_vol = float(k[9]) if len(k) > 9 else vol * 0.5   # Taker buy base asset volume
         taker_sell_vol = vol - taker_buy_vol
 
         close_time = open_time + TIMEFRAME_MS.get(tf, 60_000)
@@ -280,68 +280,112 @@ def aggregate_klines_oi(klines: list, oi_map: dict, tf: str, klines_1m: list = N
 # ─────────────────────────────────────────────
 
 async def fetch_klines(session: aiohttp.ClientSession, tf: str, limit: int = 1000) -> list:
-    """Fetch historical klines with multi-endpoint automated failover (Bypasses Cloud Geoblock/403/451)."""
-    endpoints = [
+    """Fetch historical klines with Perpetual Futures automated failover (Bypasses Cloud Geoblock)."""
+    # 1. Try Binance Perpetual Futures endpoints
+    binance_endpoints = [
         f"{BINANCE_REST}/fapi/v1/klines",
         "https://fapi1.binance.com/fapi/v1/klines",
         "https://fapi2.binance.com/fapi/v1/klines",
-        "https://data-api.binance.vision/api/v3/klines", # 100% Free global public data mirror (zero geoblocking)
-        "https://api.binance.com/api/v3/klines",
-        "https://api1.binance.com/api/v3/klines"
     ]
     params = {"symbol": SYMBOL, "interval": tf.lower(), "limit": limit}
     
-    for url in endpoints:
+    for url in binance_endpoints:
         try:
-            async with session.get(url, params=params, timeout=aiohttp.ClientTimeout(total=8)) as resp:
+            async with session.get(url, params=params, timeout=aiohttp.ClientTimeout(total=6)) as resp:
                 if resp.status == 200:
                     data = await resp.json()
-                    log.info(f"Successfully fetched {len(data)} klines from {url} for {tf}")
+                    log.info(f"Successfully fetched {len(data)} Binance Futures klines from {url} for {tf}")
                     return data
-                else:
-                    log.warning(f"Klines endpoint {url} failed: HTTP {resp.status}")
-        except Exception as e:
-            log.warning(f"Klines endpoint {url} error: {e}")
+        except Exception:
+            continue
+
+    # 2. Perpetual Futures Override: Bybit Linear Perpetual (Non-geoblocked global futures mirror)
+    try:
+        bybit_tf_map = {"1m": "1", "3m": "3", "5m": "5", "15m": "15", "1h": "60", "1d": "D"}
+        bybit_interval = bybit_tf_map.get(tf.lower(), "1")
+        bybit_url = "https://api.bybit.com/v5/market/kline"
+        bybit_params = {"category": "linear", "symbol": SYMBOL, "interval": bybit_interval, "limit": min(limit, 1000)}
+        async with session.get(bybit_url, params=bybit_params, timeout=aiohttp.ClientTimeout(total=6)) as resp:
+            if resp.status == 200:
+                data = await resp.json()
+                raw_list = data.get("result", {}).get("list", [])
+                # Bybit returns reverse order [newest first] -> reverse it to oldest first
+                raw_list.reverse()
+                klines = []
+                for b in raw_list:
+                    klines.append([
+                        b[0], b[1], b[2], b[3], b[4], b[5],
+                        0, b[6], 0, float(b[5]) * 0.5, 0, 0
+                    ])
+                log.info(f"Successfully loaded {len(klines)} Perpetual Futures klines via Bybit Gateway for {tf}")
+                return klines
+    except Exception as e:
+        log.warning(f"Bybit Perpetual Futures fallback error: {e}")
+
+    # 3. Final emergency backup: Binance Public Data Mirror
+    backup_url = "https://data-api.binance.vision/api/v3/klines"
+    try:
+        async with session.get(backup_url, params=params, timeout=aiohttp.ClientTimeout(total=6)) as resp:
+            if resp.status == 200:
+                data = await resp.json()
+                log.info(f"Loaded {len(data)} emergency candles from {backup_url} for {tf}")
+                return data
+    except Exception:
+        pass
+
     log.error("All historical kline endpoints failed!")
     return []
 
 
 async def fetch_oi_history(session: aiohttp.ClientSession, tf: str) -> dict:
-    """
-    Fetch historical Open Interest from Binance with multi-endpoint failover.
-    Returns {open_time_ms: oi_value}.
-    """
+    """Fetch historical Open Interest with Perpetual Futures Gateway failover."""
     oi_period_map = {
         "1m": "5m", "3m": "5m", "5m": "5m",
         "15m": "15m", "1H": "1h", "1D": "1d"
     }
     period = oi_period_map.get(tf, "5m")
-    endpoints = [
+    binance_endpoints = [
         f"{BINANCE_REST}/futures/data/openInterestHist",
         "https://fapi1.binance.com/futures/data/openInterestHist",
         "https://fapi2.binance.com/futures/data/openInterestHist",
-        "https://fapi3.binance.com/futures/data/openInterestHist"
     ]
     params = {"symbol": SYMBOL, "period": period, "limit": 500}
     oi_map = {}
     
-    for url in endpoints:
+    for url in binance_endpoints:
         try:
-            async with session.get(url, params=params, timeout=aiohttp.ClientTimeout(total=8)) as resp:
+            async with session.get(url, params=params, timeout=aiohttp.ClientTimeout(total=6)) as resp:
                 if resp.status == 200:
                     data = await resp.json()
                     for item in data:
                         ts = int(item["timestamp"])
                         oi = float(item["sumOpenInterest"])
                         oi_map[ts] = oi
-                    log.info(f"Successfully fetched {len(oi_map)} OI history points from {url}")
+                    log.info(f"Successfully fetched {len(oi_map)} Binance Futures OI points from {url}")
                     return oi_map
-                else:
-                    log.warning(f"OI history endpoint {url} failed: HTTP {resp.status}")
-        except Exception as e:
-            log.warning(f"OI history endpoint {url} error: {e}")
+        except Exception:
+            continue
 
-    # If REST OI history is totally geo-blocked, check local SQLite database as fallback!
+    # 2. Perpetual Futures Override: Bybit Linear Perpetual Open Interest
+    try:
+        bybit_oi_period_map = {"1m": "5min", "3m": "5min", "5m": "5min", "15m": "15min", "1h": "1h", "1d": "1d"}
+        bybit_oi_interval = bybit_oi_period_map.get(tf.lower(), "5min")
+        bybit_url = "https://api.bybit.com/v5/market/open-interest"
+        bybit_params = {"category": "linear", "symbol": SYMBOL, "intervalTime": bybit_oi_interval, "limit": 200}
+        async with session.get(bybit_url, params=bybit_params, timeout=aiohttp.ClientTimeout(total=6)) as resp:
+            if resp.status == 200:
+                data = await resp.json()
+                raw_list = data.get("result", {}).get("list", [])
+                for item in raw_list:
+                    ts = int(item["timestamp"])
+                    oi = float(item["openInterest"])
+                    oi_map[ts] = oi
+                log.info(f"Successfully loaded {len(oi_map)} Perpetual Futures OI points via Bybit Gateway")
+                return oi_map
+    except Exception as e:
+        log.warning(f"Bybit OI fallback error: {e}")
+
+    # If REST OI history is totally blocked, check local SQLite database as fallback!
     if not oi_map:
         try:
             db_cursor.execute("SELECT ts_ms, oi FROM oi_ticks ORDER BY ts_ms ASC LIMIT 1000")
@@ -354,7 +398,7 @@ async def fetch_oi_history(session: aiohttp.ClientSession, tf: str) -> dict:
 
 
 async def fetch_current_oi(session: aiohttp.ClientSession) -> float:
-    """Poll current Open Interest with automated failover mirrors."""
+    """Poll current Open Interest with Perpetual Futures Gateway mirrors."""
     endpoints = [
         f"{BINANCE_REST}/fapi/v1/openInterest",
         "https://fapi1.binance.com/fapi/v1/openInterest",
@@ -364,12 +408,25 @@ async def fetch_current_oi(session: aiohttp.ClientSession) -> float:
     params = {"symbol": SYMBOL}
     for url in endpoints:
         try:
-            async with session.get(url, params=params, timeout=aiohttp.ClientTimeout(total=5)) as resp:
+            async with session.get(url, params=params, timeout=aiohttp.ClientTimeout(total=4)) as resp:
                 if resp.status == 200:
                     data = await resp.json()
                     return float(data["openInterest"])
         except Exception:
             continue
+
+    # Bybit fallback for live OI polling
+    try:
+        bybit_url = "https://api.bybit.com/v5/market/open-interest"
+        bybit_params = {"category": "linear", "symbol": SYMBOL, "intervalTime": "5min", "limit": 1}
+        async with session.get(bybit_url, params=bybit_params, timeout=aiohttp.ClientTimeout(total=4)) as resp:
+            if resp.status == 200:
+                data = await resp.json()
+                raw_list = data.get("result", {}).get("list", [])
+                if raw_list:
+                    return float(raw_list[0]["openInterest"])
+    except Exception:
+        pass
     return 0.0
 
 
