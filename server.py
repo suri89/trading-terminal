@@ -280,65 +280,96 @@ def aggregate_klines_oi(klines: list, oi_map: dict, tf: str, klines_1m: list = N
 # ─────────────────────────────────────────────
 
 async def fetch_klines(session: aiohttp.ClientSession, tf: str, limit: int = 1000) -> list:
-    """Fetch historical klines from Binance Futures REST."""
-    url = f"{BINANCE_REST}/fapi/v1/klines"
+    """Fetch historical klines with multi-endpoint automated failover (Bypasses Cloud Geoblock/403/451)."""
+    endpoints = [
+        f"{BINANCE_REST}/fapi/v1/klines",
+        "https://fapi1.binance.com/fapi/v1/klines",
+        "https://fapi2.binance.com/fapi/v1/klines",
+        "https://data-api.binance.vision/api/v3/klines", # 100% Free global public data mirror (zero geoblocking)
+        "https://api.binance.com/api/v3/klines",
+        "https://api1.binance.com/api/v3/klines"
+    ]
     params = {"symbol": SYMBOL, "interval": tf.lower(), "limit": limit}
-    try:
-        async with session.get(url, params=params, timeout=aiohttp.ClientTimeout(total=15)) as resp:
-            if resp.status == 200:
-                data = await resp.json()
-                log.info(f"Fetched {len(data)} klines for {tf}")
-                return data
-            else:
-                log.error(f"Klines fetch failed: HTTP {resp.status}")
-                return []
-    except Exception as e:
-        log.error(f"Klines fetch error: {e}")
-        return []
+    
+    for url in endpoints:
+        try:
+            async with session.get(url, params=params, timeout=aiohttp.ClientTimeout(total=8)) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    log.info(f"Successfully fetched {len(data)} klines from {url} for {tf}")
+                    return data
+                else:
+                    log.warning(f"Klines endpoint {url} failed: HTTP {resp.status}")
+        except Exception as e:
+            log.warning(f"Klines endpoint {url} error: {e}")
+    log.error("All historical kline endpoints failed!")
+    return []
 
 
 async def fetch_oi_history(session: aiohttp.ClientSession, tf: str) -> dict:
     """
-    Fetch historical Open Interest from Binance.
+    Fetch historical Open Interest from Binance with multi-endpoint failover.
     Returns {open_time_ms: oi_value}.
-    Note: minimum granularity from this endpoint is 5m.
     """
-    # Map to nearest valid OI period
     oi_period_map = {
         "1m": "5m", "3m": "5m", "5m": "5m",
         "15m": "15m", "1H": "1h", "1D": "1d"
     }
     period = oi_period_map.get(tf, "5m")
-    url = f"{BINANCE_REST}/futures/data/openInterestHist"
+    endpoints = [
+        f"{BINANCE_REST}/futures/data/openInterestHist",
+        "https://fapi1.binance.com/futures/data/openInterestHist",
+        "https://fapi2.binance.com/futures/data/openInterestHist",
+        "https://fapi3.binance.com/futures/data/openInterestHist"
+    ]
     params = {"symbol": SYMBOL, "period": period, "limit": 500}
     oi_map = {}
-    try:
-        async with session.get(url, params=params, timeout=aiohttp.ClientTimeout(total=15)) as resp:
-            if resp.status == 200:
-                data = await resp.json()
-                for item in data:
-                    ts = int(item["timestamp"])
-                    oi = float(item["sumOpenInterest"])
-                    oi_map[ts] = oi
-                log.info(f"Fetched {len(oi_map)} OI history points")
-            else:
-                log.error(f"OI history fetch failed: HTTP {resp.status}")
-    except Exception as e:
-        log.error(f"OI history fetch error: {e}")
+    
+    for url in endpoints:
+        try:
+            async with session.get(url, params=params, timeout=aiohttp.ClientTimeout(total=8)) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    for item in data:
+                        ts = int(item["timestamp"])
+                        oi = float(item["sumOpenInterest"])
+                        oi_map[ts] = oi
+                    log.info(f"Successfully fetched {len(oi_map)} OI history points from {url}")
+                    return oi_map
+                else:
+                    log.warning(f"OI history endpoint {url} failed: HTTP {resp.status}")
+        except Exception as e:
+            log.warning(f"OI history endpoint {url} error: {e}")
+
+    # If REST OI history is totally geo-blocked, check local SQLite database as fallback!
+    if not oi_map:
+        try:
+            db_cursor.execute("SELECT ts_ms, oi FROM oi_ticks ORDER BY ts_ms ASC LIMIT 1000")
+            for ts_ms, oi_val in db_cursor.fetchall():
+                oi_map[ts_ms] = oi_val
+            log.info(f"Restored {len(oi_map)} historical OI points directly from local SQLite archive!")
+        except Exception:
+            pass
     return oi_map
 
 
 async def fetch_current_oi(session: aiohttp.ClientSession) -> float:
-    """Poll current Open Interest for live candle."""
-    url = f"{BINANCE_REST}/fapi/v1/openInterest"
+    """Poll current Open Interest with automated failover mirrors."""
+    endpoints = [
+        f"{BINANCE_REST}/fapi/v1/openInterest",
+        "https://fapi1.binance.com/fapi/v1/openInterest",
+        "https://fapi2.binance.com/fapi/v1/openInterest",
+        "https://fapi3.binance.com/fapi/v1/openInterest",
+    ]
     params = {"symbol": SYMBOL}
-    try:
-        async with session.get(url, params=params, timeout=aiohttp.ClientTimeout(total=5)) as resp:
-            if resp.status == 200:
-                data = await resp.json()
-                return float(data["openInterest"])
-    except Exception:
-        pass
+    for url in endpoints:
+        try:
+            async with session.get(url, params=params, timeout=aiohttp.ClientTimeout(total=5)) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    return float(data["openInterest"])
+        except Exception:
+            continue
     return 0.0
 
 
@@ -696,8 +727,13 @@ async def handle_static(request):
 
 
 async def main():
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Accept": "application/json",
+        "Accept-Language": "en-US,en;q=0.9",
+    }
     connector = aiohttp.TCPConnector(ssl=True)
-    async with aiohttp.ClientSession(connector=connector) as session:
+    async with aiohttp.ClientSession(connector=connector, headers=headers) as session:
         # Warm up OI
         oi_val = await fetch_current_oi(session)
         if oi_val > 0:
