@@ -2,6 +2,7 @@ services:
   - type: web
     name: btc-quant-terminal
     env: docker
+    region: frankfurt
     plan: free
     autoDeploy: true
     healthCheckPath: /ping
