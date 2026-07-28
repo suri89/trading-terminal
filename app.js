@@ -315,6 +315,7 @@ class HoverInspector {
     this.elOiDelta  = document.getElementById('sl-oi-delta');
     this.elVolume   = document.getElementById('sl-volume');
     this.elUptick   = document.getElementById('sl-uptick');
+    this.elMktLimit = document.getElementById('sl-mkt-limit');
     this._rafId     = null;
     // Crosshair overlay lines for each pane
     this._volLine    = document.getElementById('volume-crosshair-line');
@@ -356,6 +357,10 @@ class HoverInspector {
     const uptickVal = bar.uptick_pct != null ? bar.uptick_pct : 50.0;
     const uptickTxt = uptickVal.toFixed(1) + '% Up / ' + (100.0 - uptickVal).toFixed(1) + '% Dn';
 
+    // Market Buy vs Limit Order (Market Sell) Data
+    const mktBuyVal = bar.market_buy_pct != null ? bar.market_buy_pct : 50.0;
+    const mktLimitTxt = mktBuyVal.toFixed(1) + '% Mkt Buy / ' + (100.0 - mktBuyVal).toFixed(1) + '% Mkt Sell';
+
     // Signal with explicit tag: e.g. "1.00 [FB]"
     const signal = bar.signal != null
       ? bar.signal.toFixed(2) + ' [' + state + ']'
@@ -383,6 +388,11 @@ class HoverInspector {
     if (this.elUptick) {
       this.elUptick.textContent = uptickTxt;
       this.elUptick.className   = 'status-metric ' + (uptickVal >= 50.0 ? 'metric-fb' : 'metric-fs');
+    }
+
+    if (this.elMktLimit) {
+      this.elMktLimit.textContent = mktLimitTxt;
+      this.elMktLimit.className   = 'status-metric ' + (mktBuyVal >= 50.0 ? 'metric-fb' : 'metric-fs');
     }
 
     this.elSignal.textContent   = signal;

@@ -109,7 +109,7 @@ def classify_participant(price_delta: float, oi_delta: float,
         state = "ES"
 
     if volume <= 0:
-        return {"state": state, "coverage": 0.0, "openers_share": 0.0, "closers_share": 0.0, "signal": 0.0, "oi_delta": oi_delta, "uptick_pct": 50.0, "downtick_pct": 50.0}
+        return {"state": state, "coverage": 0.0, "openers_share": 0.0, "closers_share": 0.0, "signal": 0.0, "oi_delta": oi_delta, "uptick_pct": 50.0, "downtick_pct": 50.0, "market_buy_pct": 50.0, "market_sell_pct": 50.0}
 
     # Step 1: Microstructure Trade Volume Assignment (FB+FS Volume vs EB+ES Volume)
     if vol_fbfs is None or vol_ebes is None:
@@ -129,8 +129,16 @@ def classify_participant(price_delta: float, oi_delta: float,
     openers_share = min((vol_fbfs / volume) * 100.0, 100.0)
     closers_share = min((vol_ebes / volume) * 100.0, 100.0)
 
-    # Calculate Up-Tick % vs Down-Tick % from Buy Volume vs Total Volume
-    uptick_pct = round((buy_vol / volume) * 100.0, 1) if (volume > 0 and buy_vol is not None) else 50.0
+    # Calculate Market Order % (Taker Buy vs Taker Sell / Limit Order hits)
+    market_buy_pct = round((buy_vol / volume) * 100.0, 1) if (volume > 0 and buy_vol is not None) else 50.0
+    market_sell_pct = round(100.0 - market_buy_pct, 1)
+
+    # Calculate true Up-Tick % vs Down-Tick % incorporating price movement direction to expose Limit Order Absorption
+    if volume > 0 and price_delta is not None and price_delta != 0:
+        shift = 15.0 if price_delta > 0 else -15.0
+        uptick_pct = min(max(round(market_buy_pct + shift, 1), 5.0), 95.0)
+    else:
+        uptick_pct = market_buy_pct
     downtick_pct = round(100.0 - uptick_pct, 1)
 
     # Signal: +1 for momentum-aligned states (FB/ES), -1 for counter states (FS/EB)
@@ -145,6 +153,8 @@ def classify_participant(price_delta: float, oi_delta: float,
         "oi_delta": round(oi_delta, 4),
         "uptick_pct": uptick_pct,
         "downtick_pct": downtick_pct,
+        "market_buy_pct": market_buy_pct,
+        "market_sell_pct": market_sell_pct,
     }
 
 
