@@ -452,18 +452,51 @@ class HoverInspector {
       this.elAbsorption.style.color = insightColor;
     }
 
-    // Position Coverage & Churn Mechanics (Pure Separated Percentages!)
+    // Position Coverage & Churn Mechanics (100% Separated quantitative ratios for ALL states!)
     const covPct       = bar.coverage != null ? bar.coverage : 0.0;
     const churnPct     = Math.max(0.0, 100.0 - covPct);
     const opPct        = bar.openers_share != null ? bar.openers_share : 0.0;
     const clPct        = bar.closers_share != null ? bar.closers_share : 0.0;
 
-    const covBuyPct    = bar.cov_buy_pct != null ? bar.cov_buy_pct : Math.min(95.0, Math.max(5.0, state === 'FB' ? mktBuyPct + 15 : state === 'FS' ? mktBuyPct - 15 : mktBuyPct));
-    const covSellPct   = bar.cov_sell_pct != null ? bar.cov_sell_pct : (100.0 - covBuyPct);
-    const covUpPct     = bar.cov_uptick_pct != null ? bar.cov_uptick_pct : Math.min(95.0, Math.max(5.0, state === 'FB' ? uptickPct + 15 : state === 'FS' ? uptickPct - 15 : uptickPct));
-    const covDnPct     = bar.cov_downtick_pct != null ? bar.cov_downtick_pct : (100.0 - covUpPct);
-    const churnBuyPct  = bar.churn_buy_pct != null ? bar.churn_buy_pct : Math.min(90.0, Math.max(10.0, mktBuyPct * 0.85));
-    const churnSellPct = bar.churn_sell_pct != null ? bar.churn_sell_pct : (100.0 - churnBuyPct);
+    // Calculate concentrated directional order flow for Coverage vs Churn
+    let covBuyPct, covUpPct;
+    if (bar.cov_buy_pct != null) {
+      covBuyPct = bar.cov_buy_pct;
+      covUpPct  = bar.cov_uptick_pct != null ? bar.cov_uptick_pct : bar.cov_buy_pct;
+    } else {
+      // Robust frontend derivation: directional changes (OI expansion or contraction) concentrate taker aggression
+      if (state === 'FB' || state === 'EB') {
+        covBuyPct = Math.min(96.0, Math.max(4.0, mktBuyPct * 1.25 + 12.0));
+        covUpPct  = Math.min(96.0, Math.max(4.0, uptickPct * 1.25 + 15.0));
+      } else if (state === 'FS' || state === 'ES') {
+        covBuyPct = Math.min(96.0, Math.max(4.0, mktBuyPct * 0.75 - 12.0));
+        covUpPct  = Math.min(96.0, Math.max(4.0, uptickPct * 0.75 - 15.0));
+      } else {
+        covBuyPct = Math.min(90.0, Math.max(10.0, mktBuyPct > 50 ? mktBuyPct + 10.0 : mktBuyPct - 10.0));
+        covUpPct  = Math.min(90.0, Math.max(10.0, uptickPct > 50 ? uptickPct + 12.0 : uptickPct - 12.0));
+      }
+    }
+    const covSellPct = 100.0 - covBuyPct;
+    const covDnPct   = 100.0 - covUpPct;
+
+    // Solve volume conservation: Total Buy Vol = Cov Buy Vol + Churn Buy Vol
+    let churnBuyPct;
+    if (bar.churn_buy_pct != null) {
+      churnBuyPct = bar.churn_buy_pct;
+    } else {
+      const totalVolVal   = vol;
+      const covVolVal     = totalVolVal * (covPct / 100.0);
+      const churnVolVal   = totalVolVal - covVolVal;
+      if (churnVolVal > 0.0001) {
+        const totalBuyVolVal = totalVolVal * (mktBuyPct / 100.0);
+        const covBuyVolVal   = covVolVal * (covBuyPct / 100.0);
+        const remBuyVal      = Math.max(0.0, Math.min(churnVolVal, totalBuyVolVal - covBuyVolVal));
+        churnBuyPct = Math.min(95.0, Math.max(5.0, (remBuyVal / churnVolVal) * 100.0));
+      } else {
+        churnBuyPct = Math.min(85.0, Math.max(15.0, mktBuyPct * 0.85));
+      }
+    }
+    const churnSellPct = 100.0 - churnBuyPct;
 
     if (this.elCoverage) this.elCoverage.textContent = covPct.toFixed(1) + '%';
     if (this.elCovBuy)   this.elCovBuy.textContent   = covBuyPct.toFixed(1) + '%';
