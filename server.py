@@ -185,23 +185,22 @@ def aggregate_klines_oi(klines: list, oi_map: dict, tf: str, klines_1m: list = N
                     curr += delta_anchor * step_w
                     oi_1m_history[t + 60_000] = curr
 
+    import bisect
+    sorted_history = sorted(oi_1m_history.keys())
+
     def interpolate_oi(ts_ms: int) -> float:
         if ts_ms in oi_1m_history:
             return oi_1m_history[ts_ms]
-        if not sorted_times:
+        if not sorted_history:
             return 0.0
-        if ts_ms <= sorted_times[0]:
-            return oi_map[sorted_times[0]]
-        if ts_ms >= sorted_times[-1]:
-            return oi_map[sorted_times[-1]]
-        # Find surrounding points in 1m history or anchors
-        sorted_history = sorted(oi_1m_history.keys())
-        for i in range(len(sorted_history) - 1):
-            t0, t1 = sorted_history[i], sorted_history[i + 1]
-            if t0 <= ts_ms <= t1:
-                ratio = (ts_ms - t0) / (t1 - t0) if (t1 - t0) > 0 else 0
-                return oi_1m_history[t0] + ratio * (oi_1m_history[t1] - oi_1m_history[t0])
-        return oi_map[sorted_times[-1]]
+        if ts_ms <= sorted_history[0]:
+            return oi_1m_history[sorted_history[0]]
+        if ts_ms >= sorted_history[-1]:
+            return oi_1m_history[sorted_history[-1]]
+        idx = bisect.bisect_right(sorted_history, ts_ms)
+        t0, t1 = sorted_history[idx - 1], sorted_history[idx]
+        ratio = (ts_ms - t0) / (t1 - t0) if (t1 - t0) > 0 else 0.0
+        return oi_1m_history[t0] + ratio * (oi_1m_history[t1] - oi_1m_history[t0])
 
     prev_close = None
     prev_oi_val = None
@@ -286,26 +285,52 @@ def aggregate_klines_oi(klines: list, oi_map: dict, tf: str, klines_1m: list = N
 # ─────────────────────────────────────────────
 
 async def fetch_klines(session: aiohttp.ClientSession, tf: str, limit: int = 1000) -> list:
-    """Fetch historical klines from Binance Futures REST."""
+    """Fetch deep historical klines from Binance Futures REST via multi-request backward pagination."""
     url = f"{BINANCE_REST}/fapi/v1/klines"
-    params = {"symbol": SYMBOL, "interval": tf.lower(), "limit": limit}
-    try:
-        async with session.get(url, params=params, timeout=aiohttp.ClientTimeout(total=15)) as resp:
-            if resp.status == 200:
-                data = await resp.json()
-                log.info(f"Fetched {len(data)} klines for {tf}")
-                return data
-            else:
-                log.error(f"Klines fetch failed: HTTP {resp.status}")
-                return []
-    except Exception as e:
-        log.error(f"Klines fetch error: {e}")
-        return []
+    all_klines = []
+    end_time = None
+    max_per_call = 1500
+
+    while len(all_klines) < limit:
+        params = {"symbol": SYMBOL, "interval": tf.lower(), "limit": max_per_call}
+        if end_time:
+            params["endTime"] = end_time
+
+        try:
+            async with session.get(url, params=params, timeout=aiohttp.ClientTimeout(total=15)) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    if not data:
+                        break
+                    all_klines = data + all_klines
+                    oldest_ts = int(data[0][0])
+                    end_time = oldest_ts - 1
+                    if len(data) < max_per_call:
+                        break  # No further history available on Binance
+                else:
+                    log.error(f"Klines fetch failed: HTTP {resp.status}")
+                    break
+        except Exception as e:
+            log.error(f"Klines fetch error: {e}")
+            break
+
+    # Remove duplicates by open timestamp and trim to target limit
+    seen = set()
+    unique_klines = []
+    for bar in sorted(all_klines, key=lambda x: int(x[0])):
+        ts = int(bar[0])
+        if ts not in seen:
+            seen.add(ts)
+            unique_klines.append(bar)
+
+    result = unique_klines[-limit:] if len(unique_klines) > limit else unique_klines
+    log.info(f"Fetched {len(result)} deep historical klines for {tf} via backward pagination")
+    return result
 
 
 async def fetch_oi_history(session: aiohttp.ClientSession, tf: str) -> dict:
     """
-    Fetch historical Open Interest from Binance Futures and enrich with Real-Time SQLite Archive.
+    Fetch deep historical Open Interest from Binance Futures via pagination and enrich with Real-Time SQLite Archive.
     Returns {open_time_ms: oi_value}.
     """
     oi_period_map = {
@@ -314,21 +339,43 @@ async def fetch_oi_history(session: aiohttp.ClientSession, tf: str) -> dict:
     }
     period = oi_period_map.get(tf, "5m")
     url = f"{BINANCE_REST}/futures/data/openInterestHist"
-    params = {"symbol": SYMBOL, "period": period, "limit": 500}
+    
     oi_map = {}
-    try:
-        async with session.get(url, params=params, timeout=aiohttp.ClientTimeout(total=15)) as resp:
-            if resp.status == 200:
-                data = await resp.json()
-                for item in data:
-                    ts = int(item["timestamp"])
-                    oi = float(item["sumOpenInterest"])
-                    oi_map[ts] = oi
-                log.info(f"Fetched {len(oi_map)} Binance OI history points")
-            else:
-                log.error(f"OI history fetch failed: HTTP {resp.status}")
-    except Exception as e:
-        log.error(f"OI history fetch error: {e}")
+    end_time = None
+    target_oi_points = 2100  # 2,100 points of 5m = 10,500 minutes = 7.3 days of historical depth
+    if period in ("15m", "1h", "1d"):
+        target_oi_points = 500
+
+    all_oi_data = []
+    while len(all_oi_data) < target_oi_points:
+        params = {"symbol": SYMBOL, "period": period, "limit": 500}
+        if end_time:
+            params["endTime"] = end_time
+
+        try:
+            async with session.get(url, params=params, timeout=aiohttp.ClientTimeout(total=15)) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    if not data:
+                        break
+                    all_oi_data = data + all_oi_data
+                    oldest_ts = int(data[0]["timestamp"])
+                    end_time = oldest_ts - 1
+                    if len(data) < 500:
+                        break
+                else:
+                    log.error(f"OI history fetch failed: HTTP {resp.status}")
+                    break
+        except Exception as e:
+            log.error(f"OI history fetch error: {e}")
+            break
+
+    for item in all_oi_data:
+        ts = int(item["timestamp"])
+        oi = float(item["sumOpenInterest"])
+        oi_map[ts] = oi
+
+    log.info(f"Fetched {len(oi_map)} deep Binance OI history points")
 
     # 2. Enrich with Real-Time SQLite Archive (oi_ticks_1s.db)
     try:
@@ -618,17 +665,20 @@ async def send_history(ws, session: aiohttp.ClientSession, tf: str):
     """Fetch and send full historical data to a newly connected client."""
     await send_ws(ws, json.dumps({"type": "loading", "tf": tf}))
 
+    tf_limit_map = {"1m": 10500, "3m": 3500, "5m": 2100, "15m": 1000, "1H": 500, "1D": 200}
+    target_limit = tf_limit_map.get(tf, 2000)
+
     if tf == "1m":
         klines, oi_map = await asyncio.gather(
-            fetch_klines(session, tf, limit=1000),
+            fetch_klines(session, tf, limit=target_limit),
             fetch_oi_history(session, tf)
         )
         klines_1m = klines
     else:
         klines, oi_map, klines_1m = await asyncio.gather(
-            fetch_klines(session, tf, limit=1000),
+            fetch_klines(session, tf, limit=target_limit),
             fetch_oi_history(session, tf),
-            fetch_klines(session, "1m", limit=1000)
+            fetch_klines(session, "1m", limit=10500)
         )
 
     if not klines:
