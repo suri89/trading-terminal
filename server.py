@@ -129,6 +129,10 @@ def classify_participant(price_delta: float, oi_delta: float,
     openers_share = min((vol_fbfs / volume) * 100.0, 100.0)
     closers_share = min((vol_ebes / volume) * 100.0, 100.0)
 
+    # Calculate Up-Tick % vs Down-Tick % from Taker Buy Volume vs Volume
+    uptick_pct = round((taker_buy_vol / volume) * 100.0, 1) if (volume > 0 and taker_buy_vol is not None) else 50.0
+    downtick_pct = round(100.0 - uptick_pct, 1)
+
     # Signal: +1 for momentum-aligned states (FB/ES), -1 for counter states (FS/EB)
     signal = 1.0 if state in ("FB", "ES") else -1.0
 
@@ -139,6 +143,8 @@ def classify_participant(price_delta: float, oi_delta: float,
         "closers_share": round(closers_share, 2),
         "signal": signal,
         "oi_delta": round(oi_delta, 4),
+        "uptick_pct": uptick_pct,
+        "downtick_pct": downtick_pct,
     }
 
 
