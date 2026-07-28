@@ -413,28 +413,24 @@ class HoverInspector {
     // Taker Order Flow (Market Buy vs Market Sell)
     const mktBuyPct  = bar.market_buy_pct != null ? bar.market_buy_pct : 50.0;
     const mktSellPct = 100.0 - mktBuyPct;
-    const mktBuyVol  = bar.buy_vol != null ? bar.buy_vol : (vol * mktBuyPct / 100.0);
-    const mktSellVol = bar.sell_vol != null ? bar.sell_vol : (vol * mktSellPct / 100.0);
     
     if (this.pbMktBuy) this.pbMktBuy.style.width = mktBuyPct.toFixed(1) + '%';
-    if (this.elMktBuy) this.elMktBuy.textContent  = 'Buy: ' + mktBuyPct.toFixed(1) + '% (' + mktBuyVol.toFixed(2) + ' BTC)';
-    if (this.elMktSell) this.elMktSell.textContent = 'Sell: ' + mktSellPct.toFixed(1) + '% (' + mktSellVol.toFixed(2) + ' BTC)';
+    if (this.elMktBuy) this.elMktBuy.textContent  = 'Buy: ' + mktBuyPct.toFixed(1) + '%';
+    if (this.elMktSell) this.elMktSell.textContent = 'Sell: ' + mktSellPct.toFixed(1) + '%';
     
     if (this.elTakerDelta) {
-      const tDelta = mktBuyVol - mktSellVol;
-      this.elTakerDelta.textContent = (tDelta >= 0 ? '+' : '') + tDelta.toFixed(2) + ' BTC';
-      this.elTakerDelta.className   = 'val ' + (tDelta >= 0 ? 'txt-green' : 'txt-red');
+      const tDeltaPct = mktBuyPct - mktSellPct;
+      this.elTakerDelta.textContent = (tDeltaPct >= 0 ? '+' : '') + tDeltaPct.toFixed(1) + '%';
+      this.elTakerDelta.className   = 'val ' + (tDeltaPct >= 0 ? 'txt-green' : 'txt-red');
     }
 
     // Up-Tick vs Down-Tick Velocity & Absorption Insight
     const uptickPct   = bar.uptick_pct != null ? bar.uptick_pct : 50.0;
     const downtickPct = 100.0 - uptickPct;
-    const uptickVol   = vol * (uptickPct / 100.0);
-    const downtickVol = vol * (downtickPct / 100.0);
     
     if (this.pbUptick) this.pbUptick.style.width = uptickPct.toFixed(1) + '%';
-    if (this.elUptick) this.elUptick.textContent   = 'Up: ' + uptickPct.toFixed(1) + '% (' + uptickVol.toFixed(2) + ' BTC)';
-    if (this.elDowntick) this.elDowntick.textContent = 'Dn: ' + downtickPct.toFixed(1) + '% (' + downtickVol.toFixed(2) + ' BTC)';
+    if (this.elUptick) this.elUptick.textContent   = 'Up: ' + uptickPct.toFixed(1) + '%';
+    if (this.elDowntick) this.elDowntick.textContent = 'Dn: ' + downtickPct.toFixed(1) + '%';
 
     if (this.elAbsorption) {
       let insight = '⚖️ Order Flow: Balanced Velocity';
@@ -456,37 +452,26 @@ class HoverInspector {
       this.elAbsorption.style.color = insightColor;
     }
 
-    // Position Coverage & Churn Mechanics
+    // Position Coverage & Churn Mechanics (Pure Percentages!)
     const covPct   = bar.coverage != null ? bar.coverage : 0.0;
     const churnPct = Math.max(0.0, 100.0 - covPct);
-    const covVol   = vol * (covPct / 100.0);
-    const churnVol = vol * (churnPct / 100.0);
     const opPct    = bar.openers_share != null ? bar.openers_share : 0.0;
     const clPct    = bar.closers_share != null ? bar.closers_share : 0.0;
 
-    const covMktBuy  = covVol * (mktBuyPct / 100.0);
-    const covMktSell = covVol * (mktSellPct / 100.0);
-    const covUp      = covVol * (uptickPct / 100.0);
-    const covDn      = covVol * (downtickPct / 100.0);
+    if (this.elCoverage) this.elCoverage.textContent = covPct.toFixed(1) + '%';
+    if (this.elCovBuy)   this.elCovBuy.textContent   = mktBuyPct.toFixed(1) + '%';
+    if (this.elCovSell)  this.elCovSell.textContent  = mktSellPct.toFixed(1) + '%';
+    if (this.elCovUp)    this.elCovUp.textContent    = uptickPct.toFixed(1) + '%';
+    if (this.elCovDn)    this.elCovDn.textContent    = downtickPct.toFixed(1) + '%';
+    if (this.elOpeners)  this.elOpeners.textContent  = opPct.toFixed(1) + '%';
+    if (this.elClosers)  this.elClosers.textContent  = clPct.toFixed(1) + '%';
 
-    if (this.elCoverage) this.elCoverage.textContent = covPct.toFixed(2) + '%';
-    if (this.elCovVol)   this.elCovVol.textContent   = covVol.toFixed(2) + ' BTC';
-    if (this.elCovBuy)   this.elCovBuy.textContent   = covMktBuy.toFixed(2) + ' BTC (' + mktBuyPct.toFixed(0) + '%)';
-    if (this.elCovSell)  this.elCovSell.textContent  = covMktSell.toFixed(2) + ' BTC (' + mktSellPct.toFixed(0) + '%)';
-    if (this.elCovUp)    this.elCovUp.textContent    = covUp.toFixed(2) + ' BTC (' + uptickPct.toFixed(0) + '%)';
-    if (this.elCovDn)    this.elCovDn.textContent    = covDn.toFixed(2) + ' BTC (' + downtickPct.toFixed(0) + '%)';
-    if (this.elOpeners)  this.elOpeners.textContent  = opPct.toFixed(2) + '% (' + (vol * opPct / 100.0).toFixed(2) + ' BTC)';
-    if (this.elClosers)  this.elClosers.textContent  = clPct.toFixed(2) + '% (' + (vol * clPct / 100.0).toFixed(2) + ' BTC)';
-
-    if (this.elChurnPct) this.elChurnPct.textContent = churnPct.toFixed(2) + '%';
-    if (this.elChurnVol) this.elChurnVol.textContent = churnVol.toFixed(2) + ' BTC';
+    if (this.elChurnPct) this.elChurnPct.textContent = churnPct.toFixed(1) + '%';
 
     // Churn Handoff Breakdown (Long Churn vs Short Churn)
     if (this.elChurnLong && this.elChurnShort) {
-      const lChurnVol = churnVol * (mktBuyPct / 100.0);
-      const sChurnVol = churnVol * (mktSellPct / 100.0);
-      this.elChurnLong.textContent  = mktBuyPct.toFixed(1) + '% (' + lChurnVol.toFixed(2) + ' BTC)';
-      this.elChurnShort.textContent = mktSellPct.toFixed(1) + '% (' + sChurnVol.toFixed(2) + ' BTC)';
+      this.elChurnLong.textContent  = mktBuyPct.toFixed(1) + '%';
+      this.elChurnShort.textContent = mktSellPct.toFixed(1) + '%';
     }
   }
 

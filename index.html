@@ -247,7 +247,7 @@
             <span class="txt-sell" id="insp-mkt-sell">Sell: ——</span>
           </div>
           <div class="insp-row" style="margin-top: 6px;">
-            <span class="lbl">Taker Volume Delta:</span>
+            <span class="lbl">Taker Imbalance (Δ%):</span>
             <span id="insp-taker-delta" class="val">——</span>
           </div>
           <div class="insp-desc-small">Market Buys hitting Limit Sells vs Market Sells hitting Limit Buys.</div>
@@ -271,12 +271,8 @@
         <div class="insp-section-title">COVERAGE VS CHURN MECHANICS</div>
         <div class="insp-card">
           <div class="insp-row">
-            <span class="lbl">Coverage % (Net ΔOI):</span>
-            <span id="insp-coverage" class="val">——</span>
-          </div>
-          <div class="insp-row">
-            <span class="lbl">Covered Volume:</span>
-            <span id="insp-cov-vol" class="val highlight-vol">——</span>
+            <span class="lbl">Coverage Ratio (Net ΔOI):</span>
+            <span id="insp-coverage" class="val highlight-vol">——</span>
           </div>
           <div class="insp-row-sub" style="margin-top: 2px;">
             <span>• Cov Mkt Buy / Sell:</span>
@@ -305,12 +301,8 @@
           </div>
           <hr class="insp-divider">
           <div class="insp-row">
-            <span class="lbl">Uncovered Churn %:</span>
+            <span class="lbl">Uncovered Churn Ratio:</span>
             <span id="insp-churn-pct" class="val">——</span>
-          </div>
-          <div class="insp-row">
-            <span class="lbl">Total Churn Volume:</span>
-            <span id="insp-churn-vol" class="val">——</span>
           </div>
           <div class="insp-row-sub">
             <span>• Long Churn (FB vs EB):</span>
