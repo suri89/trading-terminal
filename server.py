@@ -109,7 +109,7 @@ def classify_participant(price_delta: float, oi_delta: float,
         state = "ES"
 
     if volume <= 0:
-        return {"state": state, "coverage": 0.0, "openers_share": 0.0, "closers_share": 0.0, "signal": 0.0, "oi_delta": oi_delta}
+        return {"state": state, "coverage": 0.0, "openers_share": 0.0, "closers_share": 0.0, "signal": 0.0, "oi_delta": oi_delta, "uptick_pct": 50.0, "downtick_pct": 50.0}
 
     # Step 1: Microstructure Trade Volume Assignment (FB+FS Volume vs EB+ES Volume)
     if vol_fbfs is None or vol_ebes is None:
@@ -129,8 +129,8 @@ def classify_participant(price_delta: float, oi_delta: float,
     openers_share = min((vol_fbfs / volume) * 100.0, 100.0)
     closers_share = min((vol_ebes / volume) * 100.0, 100.0)
 
-    # Calculate Up-Tick % vs Down-Tick % from Taker Buy Volume vs Volume
-    uptick_pct = round((taker_buy_vol / volume) * 100.0, 1) if (volume > 0 and taker_buy_vol is not None) else 50.0
+    # Calculate Up-Tick % vs Down-Tick % from Buy Volume vs Total Volume
+    uptick_pct = round((buy_vol / volume) * 100.0, 1) if (volume > 0 and buy_vol is not None) else 50.0
     downtick_pct = round(100.0 - uptick_pct, 1)
 
     # Signal: +1 for momentum-aligned states (FB/ES), -1 for counter states (FS/EB)
