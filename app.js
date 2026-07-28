@@ -307,15 +307,37 @@ class ChartManager {
 
 class HoverInspector {
   constructor() {
-    this.elCoverage = document.getElementById('sl-coverage');
-    this.elOpeners  = document.getElementById('sl-openers');
-    this.elClosers  = document.getElementById('sl-closers');
-    this.elSignal   = document.getElementById('sl-signal');
-    this.elState    = document.getElementById('sl-state');
-    this.elOiDelta  = document.getElementById('sl-oi-delta');
-    this.elVolume   = document.getElementById('sl-volume');
-    this.elUptick   = document.getElementById('sl-uptick');
-    this.elMktLimit = document.getElementById('sl-mkt-limit');
+    this.elTime       = document.getElementById('insp-time');
+    this.elState      = document.getElementById('insp-state');
+    this.elStateDesc  = document.getElementById('insp-state-desc');
+    this.elSignal     = document.getElementById('insp-signal');
+    
+    this.elOpenClose  = document.getElementById('insp-open-close');
+    this.elHighLow    = document.getElementById('insp-high-low');
+    this.elPriceDelta = document.getElementById('insp-price-delta');
+    this.elVol        = document.getElementById('insp-vol');
+    this.elOiDelta    = document.getElementById('insp-oi-delta');
+    
+    this.pbMktBuy     = document.getElementById('pb-mkt-buy');
+    this.elMktBuy     = document.getElementById('insp-mkt-buy');
+    this.elMktSell    = document.getElementById('insp-mkt-sell');
+    this.elTakerDelta = document.getElementById('insp-taker-delta');
+    
+    this.pbUptick     = document.getElementById('pb-uptick');
+    this.elUptick     = document.getElementById('insp-uptick');
+    this.elDowntick   = document.getElementById('insp-downtick');
+    this.elAbsorption = document.getElementById('insp-absorption');
+    
+    this.elCoverage   = document.getElementById('insp-coverage');
+    this.elCovVol     = document.getElementById('insp-cov-vol');
+    this.elOpeners    = document.getElementById('insp-openers');
+    this.elClosers    = document.getElementById('insp-closers');
+    
+    this.elChurnPct   = document.getElementById('insp-churn-pct');
+    this.elChurnVol   = document.getElementById('insp-churn-vol');
+    this.elChurnLong  = document.getElementById('insp-churn-long');
+    this.elChurnShort = document.getElementById('insp-churn-short');
+
     this._rafId     = null;
     // Crosshair overlay lines for each pane
     this._volLine    = document.getElementById('volume-crosshair-line');
@@ -325,82 +347,134 @@ class HoverInspector {
   updateStatusLine(bar, isLive = false) {
     if (!bar) return;
 
-    const state    = bar.state || '—';
-    const stateKey = state.toLowerCase();   // 'fb', 'fs', 'eb', 'es'
+    const state = bar.state || '—';
+    const vol   = (bar.volume || 0);
 
-    // Coverage with %
-    const coverage = bar.coverage != null
-      ? bar.coverage.toFixed(2) + '%'
-      : '—';
-
-    // Openers Share with % — color-coded by state
-    const openers = bar.openers_share != null
-      ? bar.openers_share.toFixed(2) + '%'
-      : '—';
-
-    // Closers Share with %
-    const closers = bar.closers_share != null
-      ? bar.closers_share.toFixed(2) + '%'
-      : '—';
-
-    // Net OI Δ with sign and BTC unit
-    const oid = bar.oi_delta != null
-      ? (bar.oi_delta >= 0 ? '+' : '') + bar.oi_delta.toFixed(2) + ' BTC'
-      : '—';
-
-    // Traded Volume in BTC units
-    const vol = bar.volume != null
-      ? bar.volume.toFixed(2) + ' BTC'
-      : '—';
-
-    // Up-Tick % vs Down-Tick % Ratio
-    const uptickVal = bar.uptick_pct != null ? bar.uptick_pct : 50.0;
-    const uptickTxt = uptickVal.toFixed(1) + '% Up / ' + (100.0 - uptickVal).toFixed(1) + '% Dn';
-
-    // Market Buy vs Limit Order (Market Sell) Data
-    const mktBuyVal = bar.market_buy_pct != null ? bar.market_buy_pct : 50.0;
-    const mktLimitTxt = mktBuyVal.toFixed(1) + '% Mkt Buy / ' + (100.0 - mktBuyVal).toFixed(1) + '% Mkt Sell';
-
-    // Signal with explicit tag: e.g. "1.00 [FB]"
-    const signal = bar.signal != null
-      ? bar.signal.toFixed(2) + ' [' + state + ']'
-      : '—';
-
-    this.elCoverage.textContent = coverage;
-    this.elCoverage.className   = 'status-metric';
-
-    this.elOpeners.textContent  = openers;
-    this.elOpeners.className    = 'status-metric metric-' + stateKey;
-
-    if (this.elClosers) {
-      this.elClosers.textContent = closers;
-      this.elClosers.className   = 'status-metric';
+    // Format Time / Live indicator
+    if (this.elTime) {
+      if (bar.time) {
+        const d = new Date(bar.time * 1000);
+        const dateStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        this.elTime.textContent = (isLive ? '🔴 LIVE: ' : '🕒 ') + dateStr;
+      } else {
+        this.elTime.textContent = isLive ? '🔴 LIVE CANDLE' : 'Hover over a candle';
+      }
     }
 
-    this.elOiDelta.textContent  = oid;
-    this.elOiDelta.className    = 'status-metric';
-
-    if (this.elVolume) {
-      this.elVolume.textContent = vol;
-      this.elVolume.className   = 'status-metric';
+    // State & Descriptions
+    if (this.elState) {
+      this.elState.textContent = state;
+      this.elState.className   = 'insp-state-badge state-' + state;
+      
+      let desc = "Market activity neutral or balanced.";
+      if (state === "FB") desc = "🟢 Fresh Buyers dominant. Traders opening aggressive Longs (Increasing Net OI & Buying).";
+      else if (state === "FS") desc = "🔴 Fresh Sellers dominant. Traders opening aggressive Shorts (Increasing Net OI & Selling).";
+      else if (state === "EB") desc = "🟣 Exiting Buyers dominant. Long traders profit-taking/closing positions (Decreasing Net OI).";
+      else if (state === "ES") desc = "🟠 Exiting Sellers dominant. Short traders covering/closing positions (Decreasing Net OI).";
+      
+      if (this.elStateDesc) this.elStateDesc.textContent = desc;
     }
 
-    if (this.elUptick) {
-      this.elUptick.textContent = uptickTxt;
-      this.elUptick.className   = 'status-metric ' + (uptickVal >= 50.0 ? 'metric-fb' : 'metric-fs');
+    if (this.elSignal) {
+      const sig = (bar.signal || 0).toFixed(2);
+      this.elSignal.textContent = (bar.signal >= 0 ? '+' : '') + sig + ' [' + state + ']';
+      this.elSignal.className   = 'val ' + (bar.signal >= 0 ? 'txt-green' : 'txt-red');
     }
 
-    if (this.elMktLimit) {
-      this.elMktLimit.textContent = mktLimitTxt;
-      this.elMktLimit.className   = 'status-metric ' + (mktBuyVal >= 50.0 ? 'metric-fb' : 'metric-fs');
+    // OHLC & Price Delta
+    if (this.elOpenClose) {
+      const op = bar.open != null ? bar.open.toFixed(2) : '—';
+      const cl = bar.close != null ? bar.close.toFixed(2) : '—';
+      this.elOpenClose.textContent = op + ' / ' + cl;
+    }
+    if (this.elHighLow) {
+      const hi = bar.high != null ? bar.high.toFixed(2) : '—';
+      const lo = bar.low != null ? bar.low.toFixed(2) : '—';
+      this.elHighLow.textContent = hi + ' / ' + lo;
+    }
+    if (this.elPriceDelta && bar.close != null && bar.open != null) {
+      const delta = bar.close - bar.open;
+      this.elPriceDelta.textContent = (delta >= 0 ? '+' : '') + delta.toFixed(2) + ' USDT';
+      this.elPriceDelta.className   = 'val ' + (delta >= 0 ? 'txt-green' : 'txt-red');
+    }
+    if (this.elVol) {
+      this.elVol.textContent = vol.toFixed(2) + ' BTC';
+    }
+    if (this.elOiDelta) {
+      const oid = bar.oi_delta || 0;
+      this.elOiDelta.textContent = (oid >= 0 ? '+' : '') + oid.toFixed(2) + ' BTC';
+      this.elOiDelta.className   = 'val ' + (oid >= 0 ? 'txt-green' : 'txt-red');
     }
 
-    this.elSignal.textContent   = signal;
-    this.elSignal.className     = 'status-metric metric-' + stateKey;
+    // Taker Order Flow (Market Buy vs Market Sell)
+    const mktBuyPct  = bar.market_buy_pct != null ? bar.market_buy_pct : 50.0;
+    const mktSellPct = 100.0 - mktBuyPct;
+    const mktBuyVol  = bar.buy_vol != null ? bar.buy_vol : (vol * mktBuyPct / 100.0);
+    const mktSellVol = bar.sell_vol != null ? bar.sell_vol : (vol * mktSellPct / 100.0);
+    
+    if (this.pbMktBuy) this.pbMktBuy.style.width = mktBuyPct.toFixed(1) + '%';
+    if (this.elMktBuy) this.elMktBuy.textContent  = 'Buy: ' + mktBuyPct.toFixed(1) + '% (' + mktBuyVol.toFixed(2) + ' BTC)';
+    if (this.elMktSell) this.elMktSell.textContent = 'Sell: ' + mktSellPct.toFixed(1) + '% (' + mktSellVol.toFixed(2) + ' BTC)';
+    
+    if (this.elTakerDelta) {
+      const tDelta = mktBuyVol - mktSellVol;
+      this.elTakerDelta.textContent = (tDelta >= 0 ? '+' : '') + tDelta.toFixed(2) + ' BTC';
+      this.elTakerDelta.className   = 'val ' + (tDelta >= 0 ? 'txt-green' : 'txt-red');
+    }
 
-    // State badge
-    this.elState.textContent = state;
-    this.elState.className   = 'status-state state-' + state;
+    // Up-Tick vs Down-Tick Velocity & Absorption Insight
+    const uptickPct   = bar.uptick_pct != null ? bar.uptick_pct : 50.0;
+    const downtickPct = 100.0 - uptickPct;
+    const uptickVol   = vol * (uptickPct / 100.0);
+    const downtickVol = vol * (downtickPct / 100.0);
+    
+    if (this.pbUptick) this.pbUptick.style.width = uptickPct.toFixed(1) + '%';
+    if (this.elUptick) this.elUptick.textContent   = 'Up: ' + uptickPct.toFixed(1) + '% (' + uptickVol.toFixed(2) + ' BTC)';
+    if (this.elDowntick) this.elDowntick.textContent = 'Dn: ' + downtickPct.toFixed(1) + '% (' + downtickVol.toFixed(2) + ' BTC)';
+
+    if (this.elAbsorption) {
+      let insight = '⚖️ Order Flow: Balanced Velocity';
+      let insightColor = 'var(--text-secondary)';
+      if (mktBuyPct > 60.0 && uptickPct < 48.0) {
+        insight = '⚠️ Absorption: Passive Sell Wall Trapping Buyers!';
+        insightColor = '#F59E0B'; // Amber
+      } else if (mktBuyPct > 60.0 && uptickPct >= 60.0) {
+        insight = '🚀 Momentum: Aggressive Bullish Breakout!';
+        insightColor = '#10B981'; // Green
+      } else if (mktSellPct > 60.0 && uptickPct > 52.0) {
+        insight = '⚠️ Absorption: Passive Buy Wall Trapping Sellers!';
+        insightColor = '#3B82F6'; // Blue/Gold
+      } else if (mktSellPct > 60.0 && uptickPct <= 40.0) {
+        insight = '💥 Momentum: Aggressive Bearish Dump!';
+        insightColor = '#E11D48'; // Red
+      }
+      this.elAbsorption.textContent = insight;
+      this.elAbsorption.style.color = insightColor;
+    }
+
+    // Position Coverage & Churn Mechanics
+    const covPct   = bar.coverage != null ? bar.coverage : 0.0;
+    const churnPct = Math.max(0.0, 100.0 - covPct);
+    const covVol   = vol * (covPct / 100.0);
+    const churnVol = vol * (churnPct / 100.0);
+    const opPct    = bar.openers_share != null ? bar.openers_share : 0.0;
+    const clPct    = bar.closers_share != null ? bar.closers_share : 0.0;
+
+    if (this.elCoverage) this.elCoverage.textContent = covPct.toFixed(2) + '%';
+    if (this.elCovVol)   this.elCovVol.textContent   = covVol.toFixed(2) + ' BTC';
+    if (this.elOpeners)  this.elOpeners.textContent  = opPct.toFixed(2) + '% (' + (vol * opPct / 100.0).toFixed(2) + ' BTC)';
+    if (this.elClosers)  this.elClosers.textContent  = clPct.toFixed(2) + '% (' + (vol * clPct / 100.0).toFixed(2) + ' BTC)';
+
+    if (this.elChurnPct) this.elChurnPct.textContent = churnPct.toFixed(2) + '%';
+    if (this.elChurnVol) this.elChurnVol.textContent = churnVol.toFixed(2) + ' BTC';
+
+    // Churn Handoff Breakdown (Long Churn vs Short Churn)
+    if (this.elChurnLong && this.elChurnShort) {
+      const lChurnVol = churnVol * (mktBuyPct / 100.0);
+      const sChurnVol = churnVol * (mktSellPct / 100.0);
+      this.elChurnLong.textContent  = mktBuyPct.toFixed(1) + '% (' + lChurnVol.toFixed(2) + ' BTC)';
+      this.elChurnShort.textContent = mktSellPct.toFixed(1) + '% (' + sChurnVol.toFixed(2) + ' BTC)';
+    }
   }
 
   attachCrosshairHandlers(chartManager) {

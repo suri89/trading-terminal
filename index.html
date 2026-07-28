@@ -168,34 +168,6 @@
       <!-- ══ PANE 1: PRICE CANDLESTICK ══ -->
       <section id="pane-price" aria-label="Price chart">
 
-        <!-- Status Line -->
-        <div id="status-line" aria-live="polite" aria-label="Market participant metrics">
-          <span class="status-label">Coverage:</span>
-          <span class="status-metric" id="sl-coverage">——</span>
-          <span class="status-pipe">|</span>
-          <span class="status-label">Openers Share:</span>
-          <span class="status-metric" id="sl-openers">——</span>
-          <span class="status-pipe">|</span>
-          <span class="status-label">Closers Share:</span>
-          <span class="status-metric" id="sl-closers">——</span>
-          <span class="status-pipe">|</span>
-          <span class="status-label">Net OI Δ:</span>
-          <span class="status-metric" id="sl-oi-delta">——</span>
-          <span class="status-pipe">|</span>
-          <span class="status-label">Vol:</span>
-          <span class="status-metric" id="sl-volume">——</span>
-          <span class="status-pipe">|</span>
-          <span class="status-label">Up-Tick %:</span>
-          <span class="status-metric" id="sl-uptick">——</span>
-          <span class="status-pipe">|</span>
-          <span class="status-label">Market/Limit:</span>
-          <span class="status-metric" id="sl-mkt-limit">——</span>
-          <span class="status-pipe">|</span>
-          <span class="status-label">Signal:</span>
-          <span class="status-metric" id="sl-signal">——</span>
-          <span id="sl-state" class="status-state state-FB">——</span>
-        </div>
-
         <!-- LWC Price Chart Mount Point -->
         <div id="price-chart-container"></div>
 
@@ -220,6 +192,121 @@
       </section>
 
     </main><!-- #chart-area -->
+
+    <!-- ─── RIGHT HAND SIDE PANEL: CANDLE MICROSTRUCTURE INSPECTOR ─── -->
+    <aside id="right-inspector" aria-label="Candle Microstructure Inspector">
+      <div class="inspector-header">
+        <div class="inspector-title">CANDLE MICROSTRUCTURE</div>
+        <div class="inspector-subtitle" id="insp-time">Hover over a candle</div>
+      </div>
+
+      <div class="inspector-body">
+        <!-- State Badge Card -->
+        <div class="insp-card state-card" id="insp-state-card">
+          <div class="insp-state-badge" id="insp-state">——</div>
+          <div class="insp-state-desc" id="insp-state-desc">Waiting for data...</div>
+          <div class="insp-row" style="margin-top: 8px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 6px;">
+            <span class="lbl">Signal Score:</span>
+            <span id="insp-signal" class="val">——</span>
+          </div>
+        </div>
+
+        <!-- Section 1: OHLC & Traded Volume -->
+        <div class="insp-section-title">PRICE ACTION &amp; VOLUME</div>
+        <div class="insp-card">
+          <div class="insp-row">
+            <span class="lbl">Open / Close:</span>
+            <span id="insp-open-close" class="val">—— / ——</span>
+          </div>
+          <div class="insp-row">
+            <span class="lbl">High / Low:</span>
+            <span id="insp-high-low" class="val">—— / ——</span>
+          </div>
+          <div class="insp-row">
+            <span class="lbl">Price Delta (ΔP):</span>
+            <span id="insp-price-delta" class="val">——</span>
+          </div>
+          <div class="insp-row">
+            <span class="lbl">Total Volume:</span>
+            <span id="insp-vol" class="val highlight-vol">——</span>
+          </div>
+          <div class="insp-row">
+            <span class="lbl">Net OI Change (ΔOI):</span>
+            <span id="insp-oi-delta" class="val highlight-oi">——</span>
+          </div>
+        </div>
+
+        <!-- Section 2: Taker Orders (Market vs Limit) -->
+        <div class="insp-section-title">TAKER ORDER FLOW (MARKET VS LIMIT)</div>
+        <div class="insp-card">
+          <div class="insp-progress-wrap">
+            <div class="insp-progress-bar bg-buy" id="pb-mkt-buy" style="width: 50%;"></div>
+          </div>
+          <div class="insp-split-row">
+            <span class="txt-buy" id="insp-mkt-buy">Buy: ——</span>
+            <span class="txt-sell" id="insp-mkt-sell">Sell: ——</span>
+          </div>
+          <div class="insp-row" style="margin-top: 6px;">
+            <span class="lbl">Taker Volume Delta:</span>
+            <span id="insp-taker-delta" class="val">——</span>
+          </div>
+          <div class="insp-desc-small">Market Buys hitting Limit Sells vs Market Sells hitting Limit Buys.</div>
+        </div>
+
+        <!-- Section 3: Tick Velocity & Absorption -->
+        <div class="insp-section-title">UP-TICK VS DOWN-TICK VELOCITY</div>
+        <div class="insp-card">
+          <div class="insp-progress-wrap">
+            <div class="insp-progress-bar bg-uptick" id="pb-uptick" style="width: 50%;"></div>
+          </div>
+          <div class="insp-split-row">
+            <span class="txt-buy" id="insp-uptick">Up: ——</span>
+            <span class="txt-sell" id="insp-downtick">Dn: ——</span>
+          </div>
+          <div class="insp-absorption-box" id="insp-absorption">⚖️ Order Flow: Waiting...</div>
+          <div class="insp-desc-small">Measures volume traded while price was actively climbing vs dropping.</div>
+        </div>
+
+        <!-- Section 4: Position Coverage & Churn Mechanics -->
+        <div class="insp-section-title">COVERAGE VS CHURN MECHANICS</div>
+        <div class="insp-card">
+          <div class="insp-row">
+            <span class="lbl">Coverage % (Net ΔOI):</span>
+            <span id="insp-coverage" class="val">——</span>
+          </div>
+          <div class="insp-row">
+            <span class="lbl">Covered Volume:</span>
+            <span id="insp-cov-vol" class="val">——</span>
+          </div>
+          <div class="insp-row">
+            <span class="lbl">Openers Share (FB+FS):</span>
+            <span id="insp-openers" class="val">——</span>
+          </div>
+          <div class="insp-row">
+            <span class="lbl">Closers Share (EB+ES):</span>
+            <span id="insp-closers" class="val">——</span>
+          </div>
+          <hr class="insp-divider">
+          <div class="insp-row">
+            <span class="lbl">Uncovered Churn %:</span>
+            <span id="insp-churn-pct" class="val">——</span>
+          </div>
+          <div class="insp-row">
+            <span class="lbl">Total Churn Volume:</span>
+            <span id="insp-churn-vol" class="val">——</span>
+          </div>
+          <div class="insp-row-sub">
+            <span>• Long Churn (FB vs EB):</span>
+            <span id="insp-churn-long" class="txt-buy">——</span>
+          </div>
+          <div class="insp-row-sub">
+            <span>• Short Churn (FS vs ES):</span>
+            <span id="insp-churn-short" class="txt-sell">——</span>
+          </div>
+          <div class="insp-desc-small">Churn volume occurs when 1 Opener matches directly with 1 Closer (Net ΔOI = 0).</div>
+        </div>
+      </div>
+    </aside>
 
   </div><!-- #body -->
 
