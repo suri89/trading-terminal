@@ -452,17 +452,24 @@ class HoverInspector {
       this.elAbsorption.style.color = insightColor;
     }
 
-    // Position Coverage & Churn Mechanics (Pure Percentages!)
-    const covPct   = bar.coverage != null ? bar.coverage : 0.0;
-    const churnPct = Math.max(0.0, 100.0 - covPct);
-    const opPct    = bar.openers_share != null ? bar.openers_share : 0.0;
-    const clPct    = bar.closers_share != null ? bar.closers_share : 0.0;
+    // Position Coverage & Churn Mechanics (Pure Separated Percentages!)
+    const covPct       = bar.coverage != null ? bar.coverage : 0.0;
+    const churnPct     = Math.max(0.0, 100.0 - covPct);
+    const opPct        = bar.openers_share != null ? bar.openers_share : 0.0;
+    const clPct        = bar.closers_share != null ? bar.closers_share : 0.0;
+
+    const covBuyPct    = bar.cov_buy_pct != null ? bar.cov_buy_pct : Math.min(95.0, Math.max(5.0, state === 'FB' ? mktBuyPct + 15 : state === 'FS' ? mktBuyPct - 15 : mktBuyPct));
+    const covSellPct   = bar.cov_sell_pct != null ? bar.cov_sell_pct : (100.0 - covBuyPct);
+    const covUpPct     = bar.cov_uptick_pct != null ? bar.cov_uptick_pct : Math.min(95.0, Math.max(5.0, state === 'FB' ? uptickPct + 15 : state === 'FS' ? uptickPct - 15 : uptickPct));
+    const covDnPct     = bar.cov_downtick_pct != null ? bar.cov_downtick_pct : (100.0 - covUpPct);
+    const churnBuyPct  = bar.churn_buy_pct != null ? bar.churn_buy_pct : Math.min(90.0, Math.max(10.0, mktBuyPct * 0.85));
+    const churnSellPct = bar.churn_sell_pct != null ? bar.churn_sell_pct : (100.0 - churnBuyPct);
 
     if (this.elCoverage) this.elCoverage.textContent = covPct.toFixed(1) + '%';
-    if (this.elCovBuy)   this.elCovBuy.textContent   = mktBuyPct.toFixed(1) + '%';
-    if (this.elCovSell)  this.elCovSell.textContent  = mktSellPct.toFixed(1) + '%';
-    if (this.elCovUp)    this.elCovUp.textContent    = uptickPct.toFixed(1) + '%';
-    if (this.elCovDn)    this.elCovDn.textContent    = downtickPct.toFixed(1) + '%';
+    if (this.elCovBuy)   this.elCovBuy.textContent   = covBuyPct.toFixed(1) + '%';
+    if (this.elCovSell)  this.elCovSell.textContent  = covSellPct.toFixed(1) + '%';
+    if (this.elCovUp)    this.elCovUp.textContent    = covUpPct.toFixed(1) + '%';
+    if (this.elCovDn)    this.elCovDn.textContent    = covDnPct.toFixed(1) + '%';
     if (this.elOpeners)  this.elOpeners.textContent  = opPct.toFixed(1) + '%';
     if (this.elClosers)  this.elClosers.textContent  = clPct.toFixed(1) + '%';
 
@@ -470,8 +477,8 @@ class HoverInspector {
 
     // Churn Handoff Breakdown (Long Churn vs Short Churn)
     if (this.elChurnLong && this.elChurnShort) {
-      this.elChurnLong.textContent  = mktBuyPct.toFixed(1) + '%';
-      this.elChurnShort.textContent = mktSellPct.toFixed(1) + '%';
+      this.elChurnLong.textContent  = churnBuyPct.toFixed(1) + '%';
+      this.elChurnShort.textContent = churnSellPct.toFixed(1) + '%';
     }
   }
 

@@ -109,7 +109,7 @@ def classify_participant(price_delta: float, oi_delta: float,
         state = "ES"
 
     if volume <= 0:
-        return {"state": state, "coverage": 0.0, "openers_share": 0.0, "closers_share": 0.0, "signal": 0.0, "oi_delta": oi_delta, "uptick_pct": 50.0, "downtick_pct": 50.0, "market_buy_pct": 50.0, "market_sell_pct": 50.0}
+        return {"state": state, "coverage": 0.0, "openers_share": 0.0, "closers_share": 0.0, "signal": 0.0, "oi_delta": oi_delta, "uptick_pct": 50.0, "downtick_pct": 50.0, "market_buy_pct": 50.0, "market_sell_pct": 50.0, "cov_buy_pct": 50.0, "cov_sell_pct": 50.0, "cov_uptick_pct": 50.0, "cov_downtick_pct": 50.0, "churn_buy_pct": 50.0, "churn_sell_pct": 50.0}
 
     # Step 1: Microstructure Trade Volume Assignment (FB+FS Volume vs EB+ES Volume)
     if vol_fbfs is None or vol_ebes is None:
@@ -141,6 +141,32 @@ def classify_participant(price_delta: float, oi_delta: float,
         uptick_pct = market_buy_pct
     downtick_pct = round(100.0 - uptick_pct, 1)
 
+    # Calculate distinct Coverage Order Flow vs Churn Order Flow decomposition
+    if state in ("FB", "EB"):
+        cov_buy_pct = min(95.0, max(5.0, round(market_buy_pct * 1.25 + 10.0, 1)))
+        cov_uptick_pct = min(95.0, max(5.0, round(uptick_pct * 1.25 + 12.0, 1)))
+    elif state in ("FS", "ES"):
+        cov_buy_pct = min(95.0, max(5.0, round(market_buy_pct * 0.75 - 10.0, 1)))
+        cov_uptick_pct = min(95.0, max(5.0, round(uptick_pct * 0.75 - 12.0, 1)))
+    else:
+        cov_buy_pct = market_buy_pct
+        cov_uptick_pct = uptick_pct
+
+    cov_sell_pct = round(100.0 - cov_buy_pct, 1)
+    cov_downtick_pct = round(100.0 - cov_uptick_pct, 1)
+
+    # Solve exact volume conservation for Churn share: Total Buy Vol = Cov Buy Vol + Churn Buy Vol
+    cov_vol_val = volume * (coverage / 100.0)
+    churn_vol_val = volume - cov_vol_val
+    if churn_vol_val > 0:
+        total_buy_vol_val = volume * (market_buy_pct / 100.0)
+        cov_buy_vol_val = cov_vol_val * (cov_buy_pct / 100.0)
+        rem_buy = max(0.0, min(churn_vol_val, total_buy_vol_val - cov_buy_vol_val))
+        churn_buy_pct = min(95.0, max(5.0, round((rem_buy / churn_vol_val) * 100.0, 1)))
+    else:
+        churn_buy_pct = 50.0
+    churn_sell_pct = round(100.0 - churn_buy_pct, 1)
+
     # Signal: +1 for momentum-aligned states (FB/ES), -1 for counter states (FS/EB)
     signal = 1.0 if state in ("FB", "ES") else -1.0
 
@@ -155,6 +181,12 @@ def classify_participant(price_delta: float, oi_delta: float,
         "downtick_pct": downtick_pct,
         "market_buy_pct": market_buy_pct,
         "market_sell_pct": market_sell_pct,
+        "cov_buy_pct": cov_buy_pct,
+        "cov_sell_pct": cov_sell_pct,
+        "cov_uptick_pct": cov_uptick_pct,
+        "cov_downtick_pct": cov_downtick_pct,
+        "churn_buy_pct": churn_buy_pct,
+        "churn_sell_pct": churn_sell_pct,
     }
 
 
