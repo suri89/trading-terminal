@@ -330,6 +330,10 @@ class HoverInspector {
     
     this.elCoverage   = document.getElementById('insp-coverage');
     this.elCovVol     = document.getElementById('insp-cov-vol');
+    this.elCovBuy     = document.getElementById('insp-cov-buy');
+    this.elCovSell    = document.getElementById('insp-cov-sell');
+    this.elCovUp      = document.getElementById('insp-cov-up');
+    this.elCovDn      = document.getElementById('insp-cov-dn');
     this.elOpeners    = document.getElementById('insp-openers');
     this.elClosers    = document.getElementById('insp-closers');
     
@@ -460,8 +464,17 @@ class HoverInspector {
     const opPct    = bar.openers_share != null ? bar.openers_share : 0.0;
     const clPct    = bar.closers_share != null ? bar.closers_share : 0.0;
 
+    const covMktBuy  = covVol * (mktBuyPct / 100.0);
+    const covMktSell = covVol * (mktSellPct / 100.0);
+    const covUp      = covVol * (uptickPct / 100.0);
+    const covDn      = covVol * (downtickPct / 100.0);
+
     if (this.elCoverage) this.elCoverage.textContent = covPct.toFixed(2) + '%';
     if (this.elCovVol)   this.elCovVol.textContent   = covVol.toFixed(2) + ' BTC';
+    if (this.elCovBuy)   this.elCovBuy.textContent   = covMktBuy.toFixed(2) + ' BTC (' + mktBuyPct.toFixed(0) + '%)';
+    if (this.elCovSell)  this.elCovSell.textContent  = covMktSell.toFixed(2) + ' BTC (' + mktSellPct.toFixed(0) + '%)';
+    if (this.elCovUp)    this.elCovUp.textContent    = covUp.toFixed(2) + ' BTC (' + uptickPct.toFixed(0) + '%)';
+    if (this.elCovDn)    this.elCovDn.textContent    = covDn.toFixed(2) + ' BTC (' + downtickPct.toFixed(0) + '%)';
     if (this.elOpeners)  this.elOpeners.textContent  = opPct.toFixed(2) + '% (' + (vol * opPct / 100.0).toFixed(2) + ' BTC)';
     if (this.elClosers)  this.elClosers.textContent  = clPct.toFixed(2) + '% (' + (vol * clPct / 100.0).toFixed(2) + ' BTC)';
 
